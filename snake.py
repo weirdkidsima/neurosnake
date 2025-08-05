@@ -7,21 +7,24 @@ pygame.init()
 
 # Константы
 WIDTH, HEIGHT = 600, 600  # Размер окна
-GRID_SIZE = 20            # Размер клетки
+GRID_SIZE = 20  # Размер клетки
 GRID_WIDTH = WIDTH // GRID_SIZE
 GRID_HEIGHT = HEIGHT // GRID_SIZE
-FPS = 10                  # Скорость обновления кадров
+BASE_SPEED = 10  # Базовая скорость
+MAX_SPEED = 20  # Максимальная скорость
 
 # Цвета (RGB)
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 GREEN = (0, 255, 0)
 RED = (255, 0, 0)
+YELLOW = (255, 255, 0)  # Для эффекта ускорения
 
 # Создание окна
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Змейка")
 clock = pygame.time.Clock()
+font = pygame.font.SysFont(None, 36)
 
 # Направления (векторы движения)
 UP = (0, -1)
@@ -29,12 +32,14 @@ DOWN = (0, 1)
 LEFT = (-1, 0)
 RIGHT = (1, 0)
 
+
 class Snake:
     def __init__(self):
         self.positions = [(GRID_WIDTH // 2, GRID_HEIGHT // 2)]  # Начальная позиция
-        self.direction = RIGHT                                  # Начальное направление
-        self.length = 1                                        # Начальная длина
-        self.score = 0                                          # Счёт
+        self.direction = RIGHT  # Начальное направление
+        self.length = 1  # Начальная длина
+        self.score = 0  # Счёт
+        self.speed_boost = False  # Эффект ускорения
 
     def get_head_position(self):
         return self.positions[0]  # Голова змейки
@@ -58,6 +63,9 @@ class Snake:
     def grow(self):
         self.length += 1
         self.score += 1
+        # Эффект ускорения на 0.5 секунды при росте
+        self.speed_boost = True
+        pygame.time.set_timer(pygame.USEREVENT, 500, True)
 
     def change_direction(self, new_dir):
         # Запрещаем резкие развороты
@@ -66,9 +74,11 @@ class Snake:
 
     def draw(self, surface):
         for i, (x, y) in enumerate(self.positions):
-            color = GREEN if i == 0 else (0, 200, 0)  # Голова ярче
+            # Если ускорение - голова желтеет
+            color = YELLOW if (i == 0 and self.speed_boost) else GREEN if i == 0 else (0, 200, 0)
             rect = pygame.Rect(x * GRID_SIZE, y * GRID_SIZE, GRID_SIZE, GRID_SIZE)
             pygame.draw.rect(surface, color, rect)
+
 
 class Food:
     def __init__(self):
@@ -82,12 +92,16 @@ class Food:
         rect = pygame.Rect(self.position[0] * GRID_SIZE, self.position[1] * GRID_SIZE, GRID_SIZE, GRID_SIZE)
         pygame.draw.rect(surface, RED, rect)
 
+
 def main():
     snake = Snake()
     food = Food()
     running = True
 
     while running:
+        # Расчёт текущей скорости с ограничением
+        current_speed = min(BASE_SPEED + snake.score // 3, MAX_SPEED)
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -100,6 +114,8 @@ def main():
                     snake.change_direction(LEFT)
                 elif event.key == pygame.K_RIGHT:
                     snake.change_direction(RIGHT)
+            elif event.type == pygame.USEREVENT:
+                snake.speed_boost = False  # Снимаем эффект ускорения
 
         if not snake.move():
             print(f"Игра окончена! Счёт: {snake.score}")
@@ -118,10 +134,18 @@ def main():
         screen.fill(BLACK)
         snake.draw(screen)
         food.draw(screen)
+
+        # Отображение счёта и скорости
+        score_text = font.render(f"Счёт: {snake.score}", True, WHITE)
+        speed_text = font.render(f"Скорость: {current_speed}", True, WHITE)
+        screen.blit(score_text, (10, 10))
+        screen.blit(speed_text, (10, 50))
+
         pygame.display.update()
-        clock.tick(FPS)
+        clock.tick(current_speed)  # Применяем текущую скорость
 
     pygame.quit()
+
 
 if __name__ == "__main__":
     main()
